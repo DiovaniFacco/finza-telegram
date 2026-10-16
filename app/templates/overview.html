@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Visão geral · Finza{% endblock %}
+{% block content %}
+
+<div>
+  <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight">Olá, {{ user.first_name or 'você' }} 👋</h1>
+  <p class="text-slate-500 dark:text-slate-400 mt-1">É aqui que seu dinheiro está indo.</p>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+  <section class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6">
+    <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Gastos hoje</div>
+    <div class="mt-2 text-3xl font-semibold">{{ today_total }}</div>
+    <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ today_count }} lançamentos</div>
+  </section>
+  <section class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6">
+    <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">💸 Saídas · {{ month_label }}</div>
+    <div class="mt-2 text-3xl font-semibold">{{ month_total }}</div>
+  </section>
+  <section class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6">
+    <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">💰 Entradas · {{ month_label }}</div>
+    <div class="mt-2 text-3xl font-semibold">{{ month_income }}</div>
+  </section>
+  <section class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6">
+    <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">📈 Investido · {{ month_label }}</div>
+    <div class="mt-2 text-3xl font-semibold">{{ month_invested }}</div>
+  </section>
+  <section class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6">
+    <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">⚖️ Saldo · {{ month_label }}</div>
+    <div class="mt-2 text-3xl font-semibold">{{ month_balance }}</div>
+    <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">Top: {{ top_category or '—' }} ({{ top_category_amount }})</div>
+  </section>
+</div>
+
+<h2 class="text-lg font-semibold mt-6 mb-3">💳 Saldos gerais <span class="text-xs font-normal text-slate-500 dark:text-slate-400">(acumulado, não zera no mês)</span></h2>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+  <section class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6">
+    <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">🏦 Conta geral</div>
+    <div class="mt-2 text-3xl font-semibold">{{ conta_geral }}</div>
+  </section>
+  <section class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6">
+    <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">💵 Dinheiro vivo</div>
+    <div class="mt-2 text-3xl font-semibold">{{ dinheiro_geral }}</div>
+  </section>
+  <section class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6">
+    <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">📈 Investido total</div>
+    <div class="mt-2 text-3xl font-semibold">{{ investido_total }}</div>
+  </section>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <section class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6 lg:col-span-1">
+    <h2 class="text-base font-semibold mb-1">Gastos por categoria</h2>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Este mês</p>
+    {% if categories %}
+      <ul class="space-y-3">
+        {% for cat, amount, pct in categories %}
+        <li>
+          <div class="flex items-center justify-between text-sm">
+            <span class="font-medium">{{ cat }}</span>
+            <span class="text-slate-500 dark:text-slate-400">{{ amount }}</span>
+          </div>
+          <div class="mt-1 h-1.5 bg-slate-200/70 dark:bg-white/10 rounded-full overflow-hidden">
+            <div class="h-full rounded-full bg-gradient-to-r from-indigo-500 to-pink-500" style="width: {{ pct }}%;"></div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-sm text-slate-500 dark:text-slate-400">Nenhum gasto este mês ainda.</p>
+    {% endif %}
+  </section>
+
+  <section class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6 lg:col-span-2">
+    <h2 class="text-base font-semibold mb-4">Lançamentos recentes</h2>
+    {% if recent %}
+    <div class="overflow-hidden rounded-xl border border-white/40 dark:border-white/10">
+      <table class="w-full text-sm">
+        <thead class="bg-white/40 dark:bg-white/5 text-left text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <tr>
+            <th class="px-3 py-2">Date</th>
+            <th class="px-3 py-2">Merchant</th>
+            <th class="px-3 py-2">Category</th>
+            <th class="px-3 py-2 text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in recent %}
+          <tr class="border-t border-white/30 dark:border-white/5">
+            <td class="px-3 py-2 text-slate-500 dark:text-slate-400">{{ e.expense_date }}</td>
+            <td class="px-3 py-2 font-medium">{{ e.merchant }}</td>
+            <td class="px-3 py-2">
+              <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100/70 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300">{{ e.category }}</span>
+            </td>
+            <td class="px-3 py-2 text-right font-medium">{{ e.amount }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="text-sm text-slate-500 dark:text-slate-400">Mande seu primeiro lançamento no bot do Telegram.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

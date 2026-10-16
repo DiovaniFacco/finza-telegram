@@ -1,0 +1,26 @@
+# Finza Telegram — deps 100% gratuitas (testado em Python 3.12+)
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-telegram-bot[webhooks]>=21.6
+sqlalchemy[asyncio]>=2.0.36
+asyncpg>=0.30.0
+psycopg[binary]>=3.2.0
+alembic>=1.14.0
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+python-dotenv>=1.0.1
+httpx>=0.27.2
+apscheduler>=3.10.4
+jinja2>=3.1.4
+itsdangerous>=2.2.0
+pyjwt>=2.9.0
+dateparser>=1.2.0
+matplotlib>=3.9.2
+reportlab>=4.2.5
+python-multipart>=0.0.12
+tzdata>=2024.2
+structlog>=24.4.0
+greenlet>=3.1.1
+groq>=0.9.0
+# IA: Groq primário (1000 req/dia free) + OpenRouter :free fallback (50 req/dia)
+# Banco: Postgres local via docker (grátis)

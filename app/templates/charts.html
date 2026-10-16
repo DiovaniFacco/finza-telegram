@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% block title %}Gráficos · Finza{% endblock %}
+{% block content %}
+<div>
+  <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight">Gráficos</h1>
+  <p class="text-slate-500 dark:text-slate-400 mt-1">Para onde seu dinheiro vai — e de onde ele vem.</p>
+</div>
+
+{% call card(title='Evolução mensal', subtitle='Entradas × saídas × saldo · últimos 6 meses') %}
+  <canvas id="monthly" height="110"></canvas>
+{% endcall %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  {% call card(title='Saldo acumulado', subtitle='Entradas − saídas · últimos 30 dias', klass='lg:col-span-2') %}
+    <canvas id="cumulative" height="200"></canvas>
+  {% endcall %}
+  {% call card(title='Conta × Dinheiro', subtitle='Gastos por carteira · 30 dias', klass='lg:col-span-1') %}
+    <canvas id="wallets" height="200"></canvas>
+  {% endcall %}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  {% call card(title='Gastos por categoria', subtitle='Últimos 30 dias', klass='lg:col-span-1') %}
+    <canvas id="pie" height="220"></canvas>
+  {% endcall %}
+  {% call card(title='Onde você mais gasta', subtitle='Top estabelecimentos · 30 dias', klass='lg:col-span-2') %}
+    <canvas id="merchants" height="220"></canvas>
+  {% endcall %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async function () {
+  const res = await fetch('/api/stats');
+  if (!res.ok) return;
+  const data = await res.json();
+
+  // Fallback caso o app.js em cache seja antigo
+  if (typeof window.formatBRL !== 'function') {
+    window.formatBRL = function (value) {
+      const n = Number(value || 0);
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
+    };
+  }
+
+  const palette = ['#6366F1','#10B981','#F59E0B','#EF4444','#3B82F6','#EC4899','#14B8A6','#8B5CF6','#F97316','#22C55E'];
+  const text = window.chartTextColor();
+  const grid = window.chartGridColor();
+  Chart.defaults.color = text;
+  Chart.defaults.borderColor = grid;
+  const brl = v => window.formatBRL(v);
+  const axes = {
+    x: { grid: { color: grid } },
+    y: { grid: { color: grid }, ticks: { callback: brl } }
+  };
+  const tipBRL = { callbacks: { label: ctx => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${brl(ctx.raw.y ?? ctx.raw)}` } };
+
+  // 1. Evolução mensal: barras entradas/saídas + linha saldo
+  new Chart(document.getElementById('monthly'), {
+    data: {
+      labels: data.monthly.map(m => m.label),
+      datasets: [
+        { type: 'bar', label: 'Entradas', data: data.monthly.map(m => m.income), backgroundColor: '#10B981', borderRadius: 6 },
+        { type: 'bar', label: 'Saídas', data: data.monthly.map(m => m.expense), backgroundColor: '#EF4444', borderRadius: 6 },
+        { type: 'line', label: 'Saldo', data: data.monthly.map(m => m.balance), borderColor: '#6366F1', backgroundColor: '#6366F1', tension: 0.35, pointRadius: 3 },
+      ]
+    },
+    options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: tipBRL }, scales: axes }
+  });
+
+  // 2. Saldo acumulado 30 dias
+  new Chart(document.getElementById('cumulative'), {
+    type: 'line',
+    data: {
+      labels: data.cumulative.map(d => d.date),
+      datasets: [{ label: 'Saldo acumulado', data: data.cumulative.map(d => d.balance), borderColor: '#14B8A6', backgroundColor: 'rgba(20,184,166,0.2)', fill: true, tension: 0.35, pointRadius: 0 }]
+    },
+    options: { plugins: { legend: { display: false }, tooltip: tipBRL }, scales: axes }
+  });
+
+  // 3. Conta x Dinheiro
+  new Chart(document.getElementById('wallets'), {
+    type: 'doughnut',
+    data: {
+      labels: data.wallets.map(w => w.wallet),
+      datasets: [{ data: data.wallets.map(w => w.amount), backgroundColor: ['#6366F1', '#F59E0B'], borderWidth: 2, borderColor: 'rgba(0,0,0,0)' }]
+    },
+    options: { cutout: '62%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${brl(ctx.raw)}` } } } }
+  });
+
+  // 4. Donut categorias
+  new Chart(document.getElementById('pie'), {
+    type: 'doughnut',
+    data: {
+      labels: data.categories.map(c => c.name),
+      datasets: [{ data: data.categories.map(c => c.amount), backgroundColor: data.categories.map((_, i) => palette[i % palette.length]), borderWidth: 2, borderColor: 'rgba(0,0,0,0)' }]
+    },
+    options: { cutout: '62%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${brl(ctx.raw)}` } } } }
+  });
+
+  // 5. Top estabelecimentos (barras horizontais)
+  new Chart(document.getElementById('merchants'), {
+    type: 'bar',
+    data: {
+      labels: data.merchants.map(m => m.merchant),
+      datasets: [{ label: 'Gasto', data: data.merchants.map(m => m.amount), backgroundColor: '#8B5CF6', borderRadius: 6 }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false }, tooltip: tipBRL },
+      scales: { x: { grid: { color: grid }, ticks: { callback: brl } }, y: { grid: { display: false } } }
+    }
+  });
+})();
+</script>
+{% endblock %}

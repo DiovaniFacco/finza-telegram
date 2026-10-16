@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% block title %}Lançamentos · Finza{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight">Lançamentos</h1>
+    <p class="text-slate-500 dark:text-slate-400 mt-1">{{ total }} registros · busque, ordene, navegue.</p>
+  </div>
+  <form method="get" action="/expenses" class="flex flex-wrap items-center gap-2">
+    <input type="text" name="q" value="{{ query or '' }}" placeholder="Search merchant, category, notes…"
+      class="w-64 px-3 py-2 rounded-xl bg-white/70 dark:bg-white/5 border border-white/40 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+    <input type="hidden" name="sort" value="{{ sort }}" />
+    <input type="hidden" name="dir" value="{{ direction }}" />
+    <button type="submit" class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium">Search</button>
+  </form>
+</div>
+
+{% call card() %}
+<div class="overflow-x-auto">
+  <table class="min-w-full text-sm">
+    <thead class="text-left text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      <tr>
+        {% set cols = [('date', 'Data'), ('merchant', 'Descrição'), ('category', 'Categoria'), ('amount', 'Valor')] %}
+        {% for key, label in cols %}
+          {% set new_dir = 'asc' if (sort == key and direction == 'desc') else 'desc' %}
+          <th class="px-3 py-2 {{ 'text-right' if key == 'amount' else '' }}">
+            <a href="?q={{ query or '' }}&sort={{ key }}&dir={{ new_dir }}&page=1"
+               class="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-slate-100">
+              {{ label }}
+              {% if sort == key %}<span class="text-[10px]">{{ '▼' if direction == 'desc' else '▲' }}</span>{% endif %}
+            </a>
+          </th>
+        {% endfor %}
+        <th class="px-3 py-2">Tipo</th>
+        <th class="px-3 py-2">Notas</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in expenses %}
+      <tr class="border-t border-white/30 dark:border-white/5">
+        <td class="px-3 py-2 whitespace-nowrap text-slate-500 dark:text-slate-400">{{ e.expense_date }}</td>
+        <td class="px-3 py-2 font-medium">{{ e.merchant }}</td>
+        <td class="px-3 py-2">
+          <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100/70 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300">{{ e.category }}</span>
+        </td>
+        <td class="px-3 py-2 text-right font-medium">{{ e.amount }}</td>
+        <td class="px-3 py-2">
+          <span class="text-xs px-2 py-0.5 rounded-full {{ 'bg-emerald-100/70 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' if e.kind == 'income' else ('bg-amber-100/70 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300' if e.kind == 'investment' else 'bg-rose-100/70 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300') }}">{{ e.kind_label }}</span>
+        </td>
+        <td class="px-3 py-2 text-slate-500 dark:text-slate-400">{{ e.notes }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+        No expenses found{% if query %} for "{{ query }}"{% endif %}.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if pages > 1 %}
+<div class="mt-4 flex items-center justify-between text-sm">
+  <div class="text-slate-500 dark:text-slate-400">Page {{ page }} of {{ pages }}</div>
+  <div class="flex gap-2">
+    {% if page > 1 %}
+      <a href="?q={{ query or '' }}&sort={{ sort }}&dir={{ direction }}&page={{ page - 1 }}" class="px-3 py-1.5 rounded-lg bg-white/70 dark:bg-white/10 hover:bg-white border border-white/40 dark:border-white/10">Previous</a>
+    {% endif %}
+    {% if page < pages %}
+      <a href="?q={{ query or '' }}&sort={{ sort }}&dir={{ direction }}&page={{ page + 1 }}" class="px-3 py-1.5 rounded-lg bg-white/70 dark:bg-white/10 hover:bg-white border border-white/40 dark:border-white/10">Next</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endcall %}
+{% endblock %}

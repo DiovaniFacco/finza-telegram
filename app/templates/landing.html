@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en" class="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finza · Track your money by texting your Telegram bot</title>
+  <meta name="description" content="Finza is a conversational expense tracker. Text your Telegram bot 'Uber 340' or 'Amazon mouse 799' and it parses, categorizes, stores and charts every expense — then sends a styled PDF summary every night." />
+  <meta property="og:title" content="Finza · Conversational expense tracker" />
+  <meta property="og:description" content="Track your spending by texting your Telegram bot. Auto-categorized, charted, with a nightly PDF report." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%236366f1'/><text x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='system-ui'>F</text></svg>" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } },
+    };
+    (function () {
+      const root = document.documentElement;
+      const stored = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (stored === 'dark' || (!stored && prefersDark)) {
+        root.classList.add('dark');
+      }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    html { scroll-behavior: smooth; }
+    body {
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(99,102,241,0.18), transparent 50%),
+        radial-gradient(1000px 500px at 110% 0%, rgba(236,72,153,0.12), transparent 50%);
+    }
+    .dark body {
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(99,102,241,0.25), transparent 50%),
+        radial-gradient(1000px 500px at 110% 0%, rgba(236,72,153,0.18), transparent 50%);
+    }
+    .glass { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    .text-gradient {
+      background: linear-gradient(90deg, #6366f1, #ec4899);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+    .rise { animation: rise .7s ease both; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .rise { animation: none; }
+    }
+    .chat-bubble { animation: pop .4s ease both; }
+    @keyframes pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body class="font-sans min-h-screen text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-950 antialiased">
+
+  <!-- Nav -->
+  <header class="sticky top-0 z-40 border-b border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-950/60 glass">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <a href="#top" class="flex items-center gap-2 group">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/30">F</div>
+        <span class="text-lg font-semibold tracking-tight">Finza</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-1 text-sm">
+        <a href="#what" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5 transition">What it is</a>
+        <a href="#how" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5 transition">How to use</a>
+        <a href="#features" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5 transition">Features</a>
+        <a href="#commands" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5 transition">Commands</a>
+        <a href="#stack" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5 transition">Tech</a>
+      </nav>
+      <div class="flex items-center gap-2">
+        <button id="theme-toggle" type="button" aria-label="Toggle theme"
+          class="w-9 h-9 rounded-xl border border-white/40 dark:border-white/10 bg-white/60 dark:bg-white/5 glass flex items-center justify-center hover:bg-white/80 dark:hover:bg-white/10 transition">
+          <svg class="w-4 h-4 hidden dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v2M12 19v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M3 12h2M19 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/><circle cx="12" cy="12" r="4"/></svg>
+          <svg class="w-4 h-4 dark:hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>
+        </button>
+        <a href="{{ bot_url }}" target="_blank" rel="noopener" aria-label="Open in Telegram"
+          class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-white bg-gradient-to-br from-indigo-500 to-pink-500 shadow-lg shadow-indigo-500/30 hover:opacity-90 transition">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M21.94 4.6 18.9 19.2c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.94.46l.33-4.74 8.63-7.8c.37-.33-.08-.52-.58-.19L6.06 12.6l-4.6-1.44c-1-.31-1.02-1 .21-1.48l17.98-6.93c.83-.3 1.56.2 1.29 1.85z"/></svg>
+          <span class="hidden sm:inline">Open in Telegram</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Hero -->
+    <section class="grid lg:grid-cols-2 gap-12 items-center pt-14 sm:pt-20 pb-16">
+      <div class="rise">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-indigo-100/70 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-400/20">
+          <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+          Conversational expense tracker
+        </span>
+        <h1 class="mt-5 text-4xl sm:text-5xl font-extrabold tracking-tight leading-[1.1]">
+          Your money, tracked by <span class="text-gradient">text message</span>.
+        </h1>
+        <p class="mt-5 text-lg text-slate-600 dark:text-slate-300 max-w-xl">
+          Text your Telegram bot <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-sm">Uber 340</code>
+          or <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-sm">Amazon mouse 799</code>.
+          Finza parses it, picks a category, stores it, and charts it — then sends a styled PDF summary every night at 9&nbsp;PM.
+        </p>
+        <div class="mt-8 flex flex-wrap items-center gap-3">
+          <a href="{{ bot_url }}" target="_blank" rel="noopener"
+            class="inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-white bg-gradient-to-br from-indigo-500 to-pink-500 shadow-lg shadow-indigo-500/30 hover:opacity-90 transition">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M21.94 4.6 18.9 19.2c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.94.46l.33-4.74 8.63-7.8c.37-.33-.08-.52-.58-.19L6.06 12.6l-4.6-1.44c-1-.31-1.02-1 .21-1.48l17.98-6.93c.83-.3 1.56.2 1.29 1.85z"/></svg>
+            Open @{{ bot_username }}
+          </a>
+          <a href="{{ github_url }}" target="_blank" rel="noopener"
+            class="inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold border border-white/50 dark:border-white/10 bg-white/60 dark:bg-white/5 glass hover:bg-white/80 dark:hover:bg-white/10 transition">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.55-3.88-1.55-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.24 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.25 5.69.41.36.78 1.05.78 2.12v3.14c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5z"/></svg>
+            View source
+          </a>
+        </div>
+        <p class="mt-5 text-sm text-slate-500 dark:text-slate-400">
+          No passwords. No sign-up forms. Your Telegram identity is your login.
+        </p>
+      </div>
+
+      <!-- Chat mockup -->
+      <div class="rise" style="animation-delay:.15s">
+        <div class="mx-auto max-w-sm rounded-[2rem] border border-white/50 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-2xl shadow-indigo-500/10 p-3">
+          <div class="flex items-center gap-2 px-3 py-2">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">F</div>
+            <div>
+              <div class="text-sm font-semibold leading-tight">Finza</div>
+              <div class="text-[11px] text-emerald-500 leading-tight">bot · online</div>
+            </div>
+          </div>
+          <div class="space-y-2 p-2">
+            <div class="chat-bubble flex justify-end">
+              <div class="max-w-[80%] px-3.5 py-2 rounded-2xl rounded-br-md bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm shadow">Uber 340</div>
+            </div>
+            <div class="chat-bubble flex justify-start" style="animation-delay:.08s">
+              <div class="max-w-[85%] px-3.5 py-2 rounded-2xl rounded-bl-md bg-slate-100 dark:bg-white/10 text-sm">
+                ✅ Logged <b>R$ 340,00</b> · Uber · Transport
+              </div>
+            </div>
+            <div class="chat-bubble flex justify-end" style="animation-delay:.16s">
+              <div class="max-w-[80%] px-3.5 py-2 rounded-2xl rounded-br-md bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm shadow">Amazon mouse 799</div>
+            </div>
+            <div class="chat-bubble flex justify-start" style="animation-delay:.24s">
+              <div class="max-w-[85%] px-3.5 py-2 rounded-2xl rounded-bl-md bg-slate-100 dark:bg-white/10 text-sm">
+                ✅ Logged <b>R$ 799,00</b> · Amazon Mouse · Shopping
+              </div>
+            </div>
+            <div class="chat-bubble flex justify-end" style="animation-delay:.32s">
+              <div class="max-w-[80%] px-3.5 py-2 rounded-2xl rounded-br-md bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm shadow">/today</div>
+            </div>
+            <div class="chat-bubble flex justify-start" style="animation-delay:.4s">
+              <div class="max-w-[90%] px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-slate-100 dark:bg-white/10 text-sm">
+                <div class="font-semibold mb-1">Today's expenses</div>
+                <div class="flex justify-between gap-6 text-slate-600 dark:text-slate-300"><span>Transport</span><span>R$ 340,00</span></div>
+                <div class="flex justify-between gap-6 text-slate-600 dark:text-slate-300"><span>Shopping</span><span>R$ 799,00</span></div>
+                <div class="mt-1 pt-1 border-t border-slate-300/60 dark:border-white/10 flex justify-between gap-6 font-semibold"><span>Total</span><span>R$ 1.139,00</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Badges strip -->
+    <section class="rise pb-16" style="animation-delay:.3s">
+      <div class="flex flex-wrap justify-center gap-3 text-sm">
+        {% for badge in ['⚡ Instant parsing', '🤖 AI fallback', '🏷️ Auto-categorized', '📄 Nightly PDF', '🌗 Dark mode', '📱 Mobile-ready'] %}
+        <span class="px-3 py-1.5 rounded-full border border-white/50 dark:border-white/10 bg-white/60 dark:bg-white/5 glass text-slate-600 dark:text-slate-300">{{ badge }}</span>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- What it is -->
+    <section id="what" class="py-14 border-t border-white/40 dark:border-white/10">
+      <div class="grid lg:grid-cols-3 gap-8 items-start">
+        <div class="lg:col-span-1">
+          <h2 class="text-3xl font-bold tracking-tight">What is Finza?</h2>
+          <p class="mt-3 text-slate-600 dark:text-slate-300">A personal finance companion that lives where you already are — inside Telegram.</p>
+        </div>
+        <div class="lg:col-span-2 space-y-4 text-slate-600 dark:text-slate-300 text-lg">
+          <p>
+            Finza turns a chat into a ledger. You type expenses the way you'd say them out loud, and the bot does the rest:
+            it extracts the amount, figures out the merchant, assigns a category, and writes it to a Postgres database.
+          </p>
+          <p>
+            A web dashboard visualizes everything — daily/weekly/monthly trends, categories, cumulative balance, and your
+            top merchants — in a fast, glassy interface that works on desktop and mobile, light and dark.
+          </p>
+          <p>
+            Sign-in is passwordless: the bot issues a short-lived magic link, so there are no accounts to create and no
+            credentials to leak.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- How to use -->
+    <section id="how" class="py-14 border-t border-white/40 dark:border-white/10">
+      <h2 class="text-3xl font-bold tracking-tight text-center">How to use it</h2>
+      <p class="mt-3 text-center text-slate-600 dark:text-slate-300">Up and running in under a minute.</p>
+      <div class="mt-10 grid md:grid-cols-3 gap-6">
+        <div class="relative rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 text-white font-bold flex items-center justify-center shadow-lg shadow-indigo-500/30">1</div>
+          <h3 class="mt-4 font-semibold text-lg">Open the bot</h3>
+          <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            Tap <b>Open @{{ bot_username }}</b> or search for it in Telegram, then send <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10">/start</code> to register.
+          </p>
+        </div>
+        <div class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 text-white font-bold flex items-center justify-center shadow-lg shadow-indigo-500/30">2</div>
+          <h3 class="mt-4 font-semibold text-lg">Text your expenses</h3>
+          <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            Send anything like <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10">Uber 340</code>,
+            <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10">R$ 220 coffee</code> or
+            <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10">Amazon mouse 799</code>. It's logged instantly.
+          </p>
+        </div>
+        <div class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 text-white font-bold flex items-center justify-center shadow-lg shadow-indigo-500/30">3</div>
+          <h3 class="mt-4 font-semibold text-lg">Open the dashboard</h3>
+          <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            Send <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10">/dashboard</code> to get a one-time magic link into your private web dashboard.
+          </p>
+        </div>
+      </div>
+
+      <!-- Dashboard mockup -->
+      <div class="mt-10 rounded-3xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-xl shadow-indigo-500/10 p-4 sm:p-6">
+        <div class="flex items-center gap-2 pb-4">
+          <span class="w-3 h-3 rounded-full bg-red-400/80"></span>
+          <span class="w-3 h-3 rounded-full bg-amber-400/80"></span>
+          <span class="w-3 h-3 rounded-full bg-emerald-400/80"></span>
+          <span class="ml-3 text-xs text-slate-400">financas.sfacco.com.br</span>
+        </div>
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          {% for label, value in [('Today', 'R$ 1.139'), ('Spent · this month', 'R$ 4.820'), ('Income', 'R$ 9.000'), ('Invested', 'R$ 1.200'), ('Balance', 'R$ 2.980')] %}
+          <div class="rounded-xl border border-white/40 dark:border-white/10 bg-white/60 dark:bg-white/5 p-4">
+            <div class="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ label }}</div>
+            <div class="mt-1.5 text-lg font-semibold">{{ value }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="mt-3 grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div class="lg:col-span-2 rounded-xl border border-white/40 dark:border-white/10 bg-white/60 dark:bg-white/5 p-4">
+            <div class="text-xs text-slate-500 dark:text-slate-400 mb-3">Spending by category</div>
+            <div class="flex items-end gap-2 h-28">
+              {% for h, c in [(40,'from-indigo-500 to-indigo-400'), (75,'from-pink-500 to-pink-400'), (55,'from-indigo-500 to-pink-500'), (90,'from-emerald-500 to-emerald-400'), (35,'from-amber-500 to-amber-400'), (65,'from-indigo-500 to-indigo-400'), (50,'from-pink-500 to-pink-400')] %}
+              <div class="flex-1 rounded-t-md bg-gradient-to-t {{ c }}" style="height: {{ h }}%"></div>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="rounded-xl border border-white/40 dark:border-white/10 bg-white/60 dark:bg-white/5 p-4">
+            <div class="text-xs text-slate-500 dark:text-slate-400 mb-3">Recent</div>
+            <ul class="space-y-2.5 text-sm">
+              {% for m, cat, amt in [('Uber','Transport','R$ 340'), ('Amazon','Shopping','R$ 799'), ('iFood','Food','R$ 62')] %}
+              <li class="flex items-center justify-between">
+                <span class="font-medium">{{ m }}</span>
+                <span class="text-slate-500 dark:text-slate-400">{{ amt }}</span>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="py-14 border-t border-white/40 dark:border-white/10">
+      <h2 class="text-3xl font-bold tracking-tight text-center">Features</h2>
+      <p class="mt-3 text-center text-slate-600 dark:text-slate-300">Small surface, serious plumbing underneath.</p>
+      <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {% set features = [
+          ('⚡', 'Natural-language parsing', 'A three-stage cascade (regex → rules → AI) extracts the amount and merchant from plain text, keeping latency low and costs near zero.'),
+          ('🤖', 'AI fallback', 'Only when regex and rules fall short, OpenRouter is called with a strict JSON schema — trying DeepSeek, Mistral, then Qwen.'),
+          ('🏷️', 'Auto-categorization', 'A DB-backed rules table maps merchants like Uber, iFood or Amazon to categories — and it is fully editable.'),
+          ('📄', 'Nightly PDF reports', 'Every night at 9 PM, a ReportLab + matplotlib PDF with tables and charts is delivered straight to your chat.'),
+          ('📊', 'Web dashboard', 'Category breakdowns, trends over time, cumulative balance and top merchants in a responsive, dark/light UI.'),
+          ('🔐', 'Passwordless auth', 'Short-lived JWT magic links become HMAC-signed, HttpOnly session cookies. Per-user queries only — no cross-user reads.'),
+        ] %}
+        {% for icon, title, desc in features %}
+        <div class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6 hover:-translate-y-0.5 hover:shadow-lg transition">
+          <div class="text-2xl">{{ icon }}</div>
+          <h3 class="mt-3 font-semibold text-lg">{{ title }}</h3>
+          <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">{{ desc }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Commands -->
+    <section id="commands" class="py-14 border-t border-white/40 dark:border-white/10">
+      <h2 class="text-3xl font-bold tracking-tight text-center">Bot commands</h2>
+      <div class="mt-8 max-w-3xl mx-auto overflow-hidden rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm">
+        <table class="w-full text-sm">
+          <thead class="bg-white/40 dark:bg-white/5 text-left text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <tr>
+              <th class="px-4 py-3">Command</th>
+              <th class="px-4 py-3">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cmd, desc in [
+              ('/start', 'Onboard and register the user'),
+              ('/today', "Today's totals and per-category breakdown"),
+              ('/month', 'Current calendar month summary'),
+              ('/export', 'Styled PDF for the current month'),
+              ('/dashboard', 'Issue a magic link to sign in to the web dashboard'),
+              ('/help', 'Usage examples'),
+              ('free text', 'Anything else is parsed as an expense'),
+            ] %}
+            <tr class="border-t border-white/30 dark:border-white/5">
+              <td class="px-4 py-3"><code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 whitespace-nowrap">{{ cmd }}</code></td>
+              <td class="px-4 py-3 text-slate-600 dark:text-slate-300">{{ desc }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Tech stack -->
+    <section id="stack" class="py-14 border-t border-white/40 dark:border-white/10">
+      <h2 class="text-3xl font-bold tracking-tight text-center">Built with</h2>
+      <div class="mt-8 flex flex-wrap justify-center gap-3">
+        {% for tech in ['Python 3.12', 'FastAPI', 'SQLAlchemy 2 (async)', 'PostgreSQL', 'Alembic', 'python-telegram-bot', 'APScheduler', 'OpenRouter', 'ReportLab', 'TailwindCSS', 'Chart.js', 'Railway', 'Supabase'] %}
+        <span class="px-3.5 py-1.5 rounded-xl text-sm border border-white/50 dark:border-white/10 bg-white/60 dark:bg-white/5 glass text-slate-700 dark:text-slate-200">{{ tech }}</span>
+        {% endfor %}
+      </div>
+      <div class="mt-10 grid sm:grid-cols-2 gap-5 max-w-3xl mx-auto">
+        <div class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass p-6">
+          <h3 class="font-semibold">Architecture at a glance</h3>
+          <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            FastAPI serves the webhook, dashboard and exports; a `python-telegram-bot` application runs in webhook mode;
+            APScheduler fires the nightly report job. Deployed on Railway with a Supabase Postgres database.
+          </p>
+        </div>
+        <div class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass p-6">
+          <h3 class="font-semibold">Secure by default</h3>
+          <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            The webhook lives behind a secret path segment, session cookies are signed and HttpOnly, and every dashboard
+            query is scoped to the authenticated user.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="py-16">
+      <div class="rounded-3xl border border-white/40 dark:border-white/10 bg-gradient-to-br from-indigo-500/10 to-pink-500/10 dark:from-indigo-500/20 dark:to-pink-500/10 glass p-10 text-center shadow-xl shadow-indigo-500/10">
+        <h2 class="text-3xl font-bold tracking-tight">Ready to see where your money goes?</h2>
+        <p class="mt-3 text-slate-600 dark:text-slate-300 max-w-xl mx-auto">Open the bot and send your first expense — it takes ten seconds.</p>
+        <div class="mt-8 flex flex-wrap justify-center gap-3">
+          <a href="{{ bot_url }}" target="_blank" rel="noopener"
+            class="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-br from-indigo-500 to-pink-500 shadow-lg shadow-indigo-500/30 hover:opacity-90 transition">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M21.94 4.6 18.9 19.2c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.94.46l.33-4.74 8.63-7.8c.37-.33-.08-.52-.58-.19L6.06 12.6l-4.6-1.44c-1-.31-1.02-1 .21-1.48l17.98-6.93c.83-.3 1.56.2 1.29 1.85z"/></svg>
+            Open @{{ bot_username }}
+          </a>
+          <a href="{{ github_url }}" target="_blank" rel="noopener"
+            class="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold border border-white/50 dark:border-white/10 bg-white/60 dark:bg-white/5 glass hover:bg-white/80 dark:hover:bg-white/10 transition">
+            View on GitHub
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="py-10 border-t border-white/40 dark:border-white/10 text-center text-sm text-slate-500 dark:text-slate-400">
+      <p>Built with FastAPI · python-telegram-bot · Railway + Supabase</p>
+      <p class="mt-2">
+        <a href="{{ github_url }}" target="_blank" rel="noopener" class="hover:text-slate-700 dark:hover:text-slate-200">GitHub</a>
+        <span class="mx-2">·</span>
+        <a href="{{ bot_url }}" target="_blank" rel="noopener" class="hover:text-slate-700 dark:hover:text-slate-200">@{{ bot_username }}</a>
+        <span class="mx-2">·</span>
+        MIT License
+      </p>
+    </footer>
+  </main>
+
+  <script>
+    // Theme toggle (shared key with the dashboard).
+    (function () {
+      const root = document.documentElement;
+      const button = document.getElementById('theme-toggle');
+      if (button) {
+        button.addEventListener('click', () => {
+          const isDark = root.classList.toggle('dark');
+          localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

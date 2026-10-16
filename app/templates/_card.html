@@ -1,0 +1,7 @@
+{% macro card(title=None, subtitle=None, klass='') %}
+<section class="rounded-2xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-white/5 glass shadow-sm p-6 {{ klass }}">
+  {% if title %}<h2 class="text-base font-semibold mb-1">{{ title }}</h2>{% endif %}
+  {% if subtitle %}<p class="text-xs text-slate-500 dark:text-slate-400 mb-4">{{ subtitle }}</p>{% endif %}
+  {{ caller() }}
+</section>
+{% endmacro %}
