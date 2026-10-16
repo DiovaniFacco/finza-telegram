@@ -7,6 +7,7 @@
 Send `Uber 340` or `Amazon mouse 799` and Finza parses the amount, picks a category,
 stores it, charts it — then pushes a styled PDF summary every night at 9 PM.
 
+[![CI](https://github.com/DiovaniFacco/finza-telegram/actions/workflows/ci.yml/badge.svg)](https://github.com/DiovaniFacco/finza-telegram/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
 ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0%20async-D71F00?logo=sqlalchemy&logoColor=white)
@@ -37,6 +38,8 @@ dashboard** with Chart.js. A scheduled job ships a **styled PDF report** to ever
 
 A web dashboard visualizes daily/weekly/monthly trends, categories, cumulative balance, wallet split
 and top merchants — mobile-first and passwordless (the bot issues a short-lived **magic link**).
+
+<img src="docs/dashboard.png" alt="Finza web dashboard — overview" width="100%">
 
 ## Try it
 
@@ -231,6 +234,12 @@ for the full checklist and [SETUP.md](SETUP.md) for a step-by-step local guide.
 - Session cookies are HMAC-signed (`itsdangerous`), `HttpOnly`, and `Secure` on HTTPS.
 - Every dashboard query is scoped to the authenticated `user_id` — no cross-user reads.
 - No credentials in the repo: everything comes from environment variables.
+
+## Contributing
+
+Issues and pull requests are welcome. In short: fork, branch, keep the lint green (`ruff check .`),
+and open a PR with a clear description. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full flow,
+coding conventions and the local quality checks.
 
 ## License
 
