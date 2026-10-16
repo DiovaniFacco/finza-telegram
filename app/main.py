@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
@@ -14,12 +14,12 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from app import __version__
 from app.bot.application import build_application
 from app.config import settings
+from app.db.session import check_database
 from app.routes import auth as auth_routes
 from app.routes import dashboard as dashboard_routes
 from app.routes import webhook as webhook_routes
 from app.scheduler.daily import build_scheduler
 from app.utils.logging import configure_logging, get_logger
-from app.db.session import check_database
 from app.utils.migrate import run_migrations
 
 configure_logging()

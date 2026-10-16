@@ -40,3 +40,11 @@ include = ["app*"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]  # long lines are handled by the formatter, not the linter
+
+[tool.ruff.lint.per-file-ignores]
+# Alembic migrations are code-generated and use legacy formatting on purpose.
+"app/migrations/versions/*.py" = ["UP031"]

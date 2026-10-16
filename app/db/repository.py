@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CategoryRule, DailyReport, Expense, InitialBalance, User
 
-
 # ---------------------------------------------------------------------------
 # Users
 # ---------------------------------------------------------------------------
@@ -247,7 +246,8 @@ async def cumulative_balance(
     session: AsyncSession, user_id: uuid.UUID, days: int = 30,
 ) -> list[dict]:
     """Saldo (entradas−saídas) acumulado dia a dia na janela."""
-    from datetime import date as _date, timedelta as _td
+    from datetime import date as _date
+    from datetime import timedelta as _td
 
     end = _date.today()
     start = end - _td(days=days - 1)
@@ -268,7 +268,8 @@ async def cumulative_balance(
 async def top_merchants(
     session: AsyncSession, user_id: uuid.UUID, days: int = 30, limit: int = 8,
 ) -> list[dict]:
-    from datetime import date as _date, timedelta as _td
+    from datetime import date as _date
+    from datetime import timedelta as _td
 
     end = _date.today()
     start = end - _td(days=days - 1)
@@ -286,7 +287,8 @@ async def top_merchants(
 async def wallet_split(
     session: AsyncSession, user_id: uuid.UUID, days: int = 30,
 ) -> list[dict]:
-    from datetime import date as _date, timedelta as _td
+    from datetime import date as _date
+    from datetime import timedelta as _td
 
     end = _date.today()
     start = end - _td(days=days - 1)

@@ -8,7 +8,6 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from app.bot import replies
-from app.config import settings
 from app.db import repository as repo
 from app.db.session import AsyncSessionLocal
 from app.services import auth as auth_service

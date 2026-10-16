@@ -56,7 +56,7 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
-    def _resolve_public_url_on_railway(self) -> "Settings":
+    def _resolve_public_url_on_railway(self) -> Settings:
         """On Railway, use the platform public URL — unless the user set a
         custom domain via APP_URL (e.g. https://financas.sfacco.com.br)."""
         if self.app_url and "localhost" not in self.app_url and "127.0.0.1" not in self.app_url:

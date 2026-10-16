@@ -46,10 +46,10 @@ class User(Base):
         nullable=False,
     )
 
-    expenses: Mapped[list["Expense"]] = relationship(
+    expenses: Mapped[list[Expense]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    daily_reports: Mapped[list["DailyReport"]] = relationship(
+    daily_reports: Mapped[list[DailyReport]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 

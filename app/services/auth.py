@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from urllib.parse import quote, unquote
 
 import jwt
@@ -25,7 +25,7 @@ class CurrentUser:
 
 def mint_magic_token(*, user_id: uuid.UUID, telegram_id: int, ttl_minutes: int = 15) -> str:
     """Sign a short-lived JWT used in the dashboard magic link."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": str(user_id),
         "tg": telegram_id,
