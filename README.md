@@ -73,6 +73,11 @@ picture of a receipt and it extracts amount, merchant and category automatically
 - Voice messages transcribed with Groq Whisper.
 - Receipt photos read with a vision model.
 
+**Money operations**
+- Remove/undo entries: `remove 500 dos investimentos`, `apaga o último lançamento`, `/desfazer`.
+- Transfers between wallets: `move 200 da conta pro dinheiro`.
+- Investment redemptions: `resgata 300 do tesouro pra conta` (credits the account and reduces the invested total).
+
 **Intelligence** — a three-stage cascade keeps latency low and AI cost near zero:
 1. **Regex** extracts the amount.
 2. **Rules** match merchant tokens against an in-code + DB-backed `category_rules` table.
@@ -153,19 +158,24 @@ app/
 | `/month` | Current calendar month summary |
 | `/export` | Styled PDF for the current month |
 | `/saldo` | Wallet balances (conta / dinheiro / invested) |
+| `/desfazer` | Delete the most recent entry (or transfer pair) |
+| `/remover` | Delete a matching entry (`/remover 500 dos investimentos`) |
 | `/dashboard` | Issue a magic link to the web dashboard |
 | `/help` | Usage examples |
-| _free text_ | Parsed as an expense / income / investment |
+| _free text_ | Parsed as an expense / income / investment, transfer or deletion |
 | _voice / photo_ | Transcribed or read, then parsed |
 
 ## Data model
 
 - `users(id, telegram_id, username, first_name, created_at, updated_at)`
-- `expenses(id, user_id, merchant, amount, category, kind, notes, expense_date, wallet, created_at)` — indexed on `(user_id, expense_date)` and `(user_id, category)`
+- `expenses(id, user_id, merchant, amount, category, kind, notes, expense_date, wallet, transfer_id, created_at)` — indexed on `(user_id, expense_date)` and `(user_id, category)`
 - `category_rules(id, keyword, category)` — seeded with PT-BR rules
 - `daily_reports(id, user_id, report_date, total_amount, pdf_path, created_at)` — unique on `(user_id, report_date)`
 
-`kind ∈ {expense, income, investment}`; `wallet ∈ {conta, dinheiro}`, plus an initial balance.
+`kind ∈ {expense, income, investment, investment_out, transfer_in, transfer_out}`;
+`wallet ∈ {conta, dinheiro}`, plus an initial balance. `investment_out` is an investment
+redemption crediting its destination wallet; `transfer_in`/`transfer_out` are the two legs of an
+internal transfer, linked by `transfer_id`.
 
 ## Getting started
 

@@ -72,6 +72,10 @@ class Expense(Base):
     wallet: Mapped[str] = mapped_column(String(16), nullable=False, default="conta")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     expense_date: Mapped[date] = mapped_column(Date, nullable=False)
+    # Identifica as duas pernas de uma transferência interna (conta ↔ dinheiro ↔ investimentos).
+    transfer_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -81,6 +85,7 @@ class Expense(Base):
     __table_args__ = (
         Index("ix_expenses_user_date", "user_id", "expense_date"),
         Index("ix_expenses_user_category", "user_id", "category"),
+        Index("ix_expenses_user_transfer", "user_id", "transfer_id"),
     )
 
 

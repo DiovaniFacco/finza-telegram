@@ -12,8 +12,9 @@ from app.db import repository as repo
 from app.db.session import AsyncSessionLocal
 from app.services import auth as auth_service
 from app.services import media as media_service
+from app.services import operations as operations_service
 from app.services import report as report_service
-from app.services.parser import parse_expense
+from app.services.parser import parse_message
 from app.utils.logging import get_logger
 from app.utils.money import format_brl
 
@@ -168,46 +169,28 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             username=update.effective_user.username,
             first_name=update.effective_user.first_name,
         )
-        parsed = await parse_expense(text, session)
+        parsed = await parse_message(text, session)
         if parsed is None:
             await update.message.reply_text(replies.UNPARSEABLE)
             return
 
-        await repo.create_expense(
-            session,
-            user_id=user.id,
-            merchant=parsed.merchant,
-            amount=parsed.amount,
-            category=parsed.category,
-            notes=parsed.notes,
-            expense_date=parsed.expense_date,
-            kind=parsed.kind,
-            wallet=parsed.wallet,
-        )
+        result = await operations_service.execute(session, user, parsed)
 
     logger.info(
-        "entry_logged",
+        "message_handled",
         telegram_id=update.effective_user.id,
+        action=parsed.action,
+        status=result.status,
         merchant=parsed.merchant,
-        amount=str(parsed.amount),
+        amount=str(parsed.amount) if parsed.amount is not None else None,
         category=parsed.category,
         kind=parsed.kind,
         wallet=parsed.wallet,
+        wallet_to=parsed.wallet_to or None,
         source=parsed.source,
     )
 
-    template = {
-        "income": replies.LOGGED_INCOME,
-        "investment": replies.LOGGED_INVESTMENT,
-    }.get(parsed.kind, replies.LOGGED_EXPENSE)
-    wallet_tag = " · 💵 dinheiro" if parsed.wallet == "dinheiro" else ""
-    await update.message.reply_text(
-        template.format(
-            amount=format_brl(parsed.amount),
-            merchant=parsed.merchant,
-            category=parsed.category,
-        ) + wallet_tag
-    )
+    await update.message.reply_text(replies.format_operation_result(result))
 
 
 # ---------------------------------------------------------------------------
@@ -255,6 +238,70 @@ async def cmd_saldo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 # ---------------------------------------------------------------------------
+# /remover, /apagar – remove um lançamento (atalho para o texto livre)
+# ---------------------------------------------------------------------------
+
+
+async def cmd_remove(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.effective_user or not update.message:
+        return
+    args = " ".join(context.args or []).strip()
+    if not args:
+        await update.message.reply_text(
+            "Uso: `/remover 500 dos investimentos` ou `/remover o último lançamento`."
+        )
+        return
+
+    text = f"remover {args}"
+    async with AsyncSessionLocal() as session:
+        user = await repo.upsert_user(
+            session,
+            telegram_id=update.effective_user.id,
+            username=update.effective_user.username,
+            first_name=update.effective_user.first_name,
+        )
+        parsed = await parse_message(text, session)
+        if parsed is None:
+            await update.message.reply_text(replies.UNPARSEABLE)
+            return
+        result = await operations_service.execute(session, user, parsed)
+
+    logger.info(
+        "remove_command",
+        telegram_id=update.effective_user.id,
+        status=result.status,
+        amount=str(parsed.amount) if parsed.amount is not None else None,
+    )
+    await update.message.reply_text(replies.format_operation_result(result))
+
+
+# ---------------------------------------------------------------------------
+# /desfazer – remove o último lançamento
+# ---------------------------------------------------------------------------
+
+
+async def cmd_undo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.effective_user or not update.message:
+        return
+    async with AsyncSessionLocal() as session:
+        user = await repo.upsert_user(
+            session,
+            telegram_id=update.effective_user.id,
+            username=update.effective_user.username,
+            first_name=update.effective_user.first_name,
+        )
+        result = await operations_service.undo_last(session, user)
+
+    logger.info(
+        "undo_last",
+        telegram_id=update.effective_user.id,
+        status=result.status,
+        entries=len(result.entries),
+    )
+    await update.message.reply_text(replies.format_operation_result(result))
+
+
+# ---------------------------------------------------------------------------
 # Voice messages (áudio → transcreve → lança)
 # ---------------------------------------------------------------------------
 
@@ -292,37 +339,22 @@ async def on_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             username=update.effective_user.username,
             first_name=update.effective_user.first_name,
         )
-        parsed = await parse_expense(text, session)
+        parsed = await parse_message(text, session)
         if parsed is None:
             await update.message.reply_text(
                 f'Ouvi: "{text}"\n\n{replies.UNPARSEABLE}'
             )
             return
 
-        await repo.create_expense(
-            session,
-            user_id=user.id,
-            merchant=parsed.merchant,
-            amount=parsed.amount,
-            category=parsed.category,
-            notes=f"via áudio: {text[:200]}",
-            expense_date=parsed.expense_date,
-            kind=parsed.kind,
-            wallet=parsed.wallet,
-        )
+        if parsed.notes:
+            parsed.notes = f"{parsed.notes} · via áudio: {text[:180]}"
+        else:
+            parsed.notes = f"via áudio: {text[:200]}"
 
-    template = {
-        "income": replies.LOGGED_INCOME,
-        "investment": replies.LOGGED_INVESTMENT,
-    }.get(parsed.kind, replies.LOGGED_EXPENSE)
-    wallet_tag = " · 💵 dinheiro" if parsed.wallet == "dinheiro" else ""
+        result = await operations_service.execute(session, user, parsed)
+
     await update.message.reply_text(
-        f'🎙️ Ouvi: "{text}"\n\n'
-        + template.format(
-            amount=format_brl(parsed.amount),
-            merchant=parsed.merchant,
-            category=parsed.category,
-        ) + wallet_tag
+        f'🎙️ Ouvi: "{text}"\n\n' + replies.format_operation_result(result)
     )
 
 

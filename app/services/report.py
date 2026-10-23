@@ -109,7 +109,7 @@ async def build_summary(
 ) -> Summary:
     total_expense = await repo.total_in_range(session, user.id, start, end, kind="expense")
     total_income = await repo.total_in_range(session, user.id, start, end, kind="income")
-    total_investment = await repo.total_in_range(session, user.id, start, end, kind="investment")
+    total_investment = await repo.net_investment_in_range(session, user.id, start, end)
     by_cat = await repo.totals_by_category(session, user.id, start, end, kind="expense")
     items = await repo.expenses_in_range(session, user.id, start, end)
     series = await repo.daily_totals(session, user.id, start, end, kind="expense")
@@ -307,7 +307,13 @@ def _expenses_table(summary: Summary) -> Table:
     rows: list[list[str]] = [["Data", "Descrição", "Categoria", "Notas", "Valor"]]
     for e in summary.expenses[:200]:
         _kind = getattr(e, "kind", "expense")
-        prefix = {"income": "💰 ", "investment": "📈 "}.get(_kind, "💸 ")
+        prefix = {
+            "income": "💰 ",
+            "investment": "📈 ",
+            "investment_out": "📤 ",
+            "transfer_in": "↔️ ",
+            "transfer_out": "↔️ ",
+        }.get(_kind, "💸 ")
         rows.append(
             [
                 e.expense_date.strftime("%d/%m"),

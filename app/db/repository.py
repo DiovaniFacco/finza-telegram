@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Select, and_, desc, func, or_, select
+from sqlalchemy import Select, and_, delete, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CategoryRule, DailyReport, Expense, InitialBalance, User
@@ -90,21 +90,40 @@ async def create_expense(
     expense_date: date,
     kind: str = "expense",
     wallet: str = "conta",
+    transfer_id: uuid.UUID | None = None,
 ) -> Expense:
-    expense = Expense(
+    rows = await create_expenses(
+        session,
         user_id=user_id,
-        merchant=merchant,
-        amount=amount,
-        category=category,
-        notes=notes,
-        expense_date=expense_date,
-        kind=kind,
-        wallet=wallet,
+        entries=[
+            {
+                "merchant": merchant,
+                "amount": amount,
+                "category": category,
+                "notes": notes,
+                "expense_date": expense_date,
+                "kind": kind,
+                "wallet": wallet,
+                "transfer_id": transfer_id,
+            }
+        ],
     )
-    session.add(expense)
+    return rows[0]
+
+
+async def create_expenses(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    entries: list[dict[str, Any]],
+) -> list[Expense]:
+    """Insere vários lançamentos em uma única transação (ex.: transferências)."""
+    rows = [Expense(user_id=user_id, **entry) for entry in entries]
+    session.add_all(rows)
     await session.commit()
-    await session.refresh(expense)
-    return expense
+    for row in rows:
+        await session.refresh(row)
+    return rows
 
 
 def _date_filter(user_id: uuid.UUID, start: date, end: date, kind: str | None = None,
@@ -148,6 +167,20 @@ async def total_in_range(
     )
     result = await session.execute(stmt)
     return Decimal(result.scalar_one())
+
+
+async def net_investment_in_range(
+    session: AsyncSession, user_id: uuid.UUID, start: date, end: date,
+) -> Decimal:
+    """Aportes menos resgates no período (o valor realmente investido)."""
+    contributions = await total_in_range(
+        session, user_id, start, end, kind="investment"
+    )
+    redemptions = await total_in_range(
+        session, user_id, start, end, kind="investment_out"
+    )
+    return contributions - redemptions
+
 
 
 async def totals_by_category(
@@ -205,6 +238,93 @@ async def recent_expenses(
     return list(result.scalars().all())
 
 
+async def find_expenses_for_management(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    *,
+    kind: str | None = None,
+    amount: Decimal | None = None,
+    merchant: str | None = None,
+    wallet: str | None = None,
+    expense_date: date | None = None,
+    limit: int = 10,
+) -> list[Expense]:
+    """Busca lançamentos para remoção, do mais recente para o mais antigo."""
+    conds: list[Any] = [Expense.user_id == user_id]
+    if kind is not None:
+        conds.append(Expense.kind == kind)
+    if amount is not None:
+        conds.append(Expense.amount == amount)
+    if merchant:
+        conds.append(func.lower(Expense.merchant).like(f"%{merchant.lower()}%"))
+    if wallet is not None:
+        conds.append(Expense.wallet == wallet)
+    if expense_date is not None:
+        conds.append(Expense.expense_date == expense_date)
+
+    stmt = (
+        select(Expense)
+        .where(and_(*conds))
+        .order_by(desc(Expense.created_at), desc(Expense.expense_date))
+        .limit(limit)
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def delete_expenses_by_ids(
+    session: AsyncSession, *, user_id: uuid.UUID, ids: list[uuid.UUID]
+) -> list[Expense]:
+    """Remove lançamentos do usuário e devolve os registros apagados."""
+    if not ids:
+        return []
+    rows = list(
+        (
+            await session.execute(
+                select(Expense).where(
+                    Expense.user_id == user_id, Expense.id.in_(ids)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if rows:
+        await session.execute(
+            delete(Expense).where(
+                Expense.user_id == user_id, Expense.id.in_([r.id for r in rows])
+            )
+        )
+        await session.commit()
+    return rows
+
+
+async def delete_transfer(
+    session: AsyncSession, *, user_id: uuid.UUID, transfer_id: uuid.UUID
+) -> list[Expense]:
+    """Remove as duas pernas de uma transferência interna."""
+    rows = list(
+        (
+            await session.execute(
+                select(Expense).where(
+                    Expense.user_id == user_id, Expense.transfer_id == transfer_id
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if rows:
+        await session.execute(
+            delete(Expense).where(
+                Expense.user_id == user_id, Expense.transfer_id == transfer_id
+            )
+        )
+        await session.commit()
+    return rows
+
+
+
 # ---------------------------------------------------------------------------
 # Séries para gráficos
 # ---------------------------------------------------------------------------
@@ -235,7 +355,7 @@ async def monthly_series(
             "label": f"{MESES_PT_SHORT[m]}/{str(y)[2:]}",
             "income": float(await total_in_range(session, user_id, start, end, kind="income")),
             "expense": float(await total_in_range(session, user_id, start, end, kind="expense")),
-            "investment": float(await total_in_range(session, user_id, start, end, kind="investment")),
+            "investment": float(await net_investment_in_range(session, user_id, start, end)),
         })
     for row in out:
         row["balance"] = row["income"] - row["expense"]
@@ -402,16 +522,33 @@ async def wallet_kind_total(
 
 
 async def general_balances(session: AsyncSession, user_id: uuid.UUID) -> dict[str, Decimal]:
-    """Saldos gerais por carteira: inicial + entradas − saídas (investimento não abate)."""
+    """Saldos gerais por carteira (acumulado, sem zerar no mês).
+
+    - entradas somam, saídas subtraem;
+    - transferências internas movem o saldo entre carteiras;
+    - resgates de investimento creditam a carteira de destino;
+    - aportes continuam sendo controlados separadamente em ``investido``.
+    """
     initials = await get_initial_balances(session, user_id)
     out: dict[str, Decimal] = {}
     for wallet in WALLETS:
         income = await wallet_kind_total(session, user_id, wallet, "income")
         expense = await wallet_kind_total(session, user_id, wallet, "expense")
-        out[wallet] = Decimal(initials.get(wallet, 0)) + income - expense
+        transfer_in = await wallet_kind_total(session, user_id, wallet, "transfer_in")
+        transfer_out = await wallet_kind_total(session, user_id, wallet, "transfer_out")
+        redeemed = await wallet_kind_total(session, user_id, wallet, "investment_out")
+        out[wallet] = (
+            Decimal(initials.get(wallet, 0))
+            + income
+            - expense
+            + transfer_in
+            - transfer_out
+            + redeemed
+        )
     invested = Decimal("0")
     for wallet in WALLETS:
         invested += await wallet_kind_total(session, user_id, wallet, "investment")
+        invested -= await wallet_kind_total(session, user_id, wallet, "investment_out")
     out["investido"] = invested
     return out
 

@@ -158,7 +158,13 @@ async def expenses_page(
             "merchant": e.merchant,
             "category": e.category,
             "kind": e.kind,
-            "kind_label": {"income": "Entrada", "investment": "Investimento"}.get(e.kind, "Gasto"),
+            "kind_label": {
+                "income": "Entrada",
+                "investment": "Investimento",
+                "investment_out": "Resgate",
+                "transfer_in": "Transferência",
+                "transfer_out": "Transferência",
+            }.get(e.kind, "Gasto"),
             "notes": e.notes or "",
             "amount": format_brl(e.amount),
         }

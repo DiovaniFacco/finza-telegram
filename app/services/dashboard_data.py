@@ -41,7 +41,9 @@ async def load_overview(session: AsyncSession, user: User) -> OverviewData:
     today_total_val = await repo.total_in_range(session, user.id, today, today, kind="expense")
     month_total_val = await repo.total_in_range(session, user.id, month_start, month_end, kind="expense")
     month_income_val = await repo.total_in_range(session, user.id, month_start, month_end, kind="income")
-    month_invested_val = await repo.total_in_range(session, user.id, month_start, month_end, kind="investment")
+    month_invested_val = await repo.net_investment_in_range(
+        session, user.id, month_start, month_end
+    )
     today_items = await repo.expenses_in_range(session, user.id, today, today)
     by_cat = await repo.totals_by_category(session, user.id, month_start, month_end, kind="expense")
     recent_orm = await repo.recent_expenses(session, user.id, limit=10)
@@ -61,7 +63,16 @@ async def load_overview(session: AsyncSession, user: User) -> OverviewData:
     recent = [
         {
             "expense_date": e.expense_date.strftime("%d/%m"),
-            "merchant": ({"income": "💰 ", "investment": "📈 "}.get(e.kind, "💸 ") + (e.merchant or "")),
+            "merchant": (
+                {
+                    "income": "💰 ",
+                    "investment": "📈 ",
+                    "investment_out": "📤 ",
+                    "transfer_in": "↔️ ",
+                    "transfer_out": "↔️ ",
+                }.get(e.kind, "💸 ")
+                + (e.merchant or "")
+            ),
             "category": e.category or "Outros",
             "kind": e.kind,
             "amount": format_brl(e.amount),

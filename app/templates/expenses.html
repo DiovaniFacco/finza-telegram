@@ -46,7 +46,7 @@
         </td>
         <td class="px-3 py-2 text-right font-medium">{{ e.amount }}</td>
         <td class="px-3 py-2">
-          <span class="text-xs px-2 py-0.5 rounded-full {{ 'bg-emerald-100/70 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' if e.kind == 'income' else ('bg-amber-100/70 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300' if e.kind == 'investment' else 'bg-rose-100/70 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300') }}">{{ e.kind_label }}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full {% if e.kind == 'income' %}bg-emerald-100/70 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300{% elif e.kind == 'investment' %}bg-amber-100/70 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300{% elif e.kind == 'investment_out' %}bg-sky-100/70 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300{% elif e.kind in ('transfer_in', 'transfer_out') %}bg-indigo-100/70 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300{% else %}bg-rose-100/70 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300{% endif %}">{{ e.kind_label }}</span>
         </td>
         <td class="px-3 py-2 text-slate-500 dark:text-slate-400">{{ e.notes }}</td>
       </tr>

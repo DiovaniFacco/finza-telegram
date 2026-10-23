@@ -37,6 +37,9 @@ jobs:
       - name: Compile all sources
         run: python -m compileall -q app
 
+      - name: Unit tests
+        run: pytest -q
+
       - name: Import smoke test
         env:
           TELEGRAM_BOT_TOKEN: "123456:TEST-TOKEN"

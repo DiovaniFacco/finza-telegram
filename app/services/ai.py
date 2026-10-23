@@ -2,6 +2,10 @@
 
 Mesma interface do antigo openrouter.py: `parse_with_ai(texto)` retorna
 AIParseResult ou None. Categorias e prompts em PT-BR.
+
+Além de lançamentos novos, a IA identifica operações:
+- `delete` (apagar/remover/desfazer um lançamento);
+- `transfer` (mover dinheiro entre conta, dinheiro e investimentos).
 """
 
 from __future__ import annotations
@@ -30,18 +34,41 @@ OPENROUTER_FALLBACKS: list[str] = [
 ]
 
 SYSTEM_PROMPT = (
-    "Você extrai dados financeiros de mensagens em português. "
-    "Responda APENAS com JSON válido, sem comentários, neste esquema: "
-    '{"merchant": string, "amount": number, "category": string, "notes": string, '
-    '"kind": "income", "expense" ou "investment"}. '
-    "Use kind=income para entradas (recebi, salário, freelance); "
-    "kind=investment para aportes/investimentos (investi, aporte, tesouro, ações, CDB); "
-    "senão kind=expense. "
+    "Você interpreta mensagens financeiras em português e responde APENAS com JSON "
+    "válido, sem comentários, neste esquema: "
+    '{"action": "create" | "delete" | "transfer", '
+    '"kind": "income" | "expense" | "investment", '
+    '"amount": number, "merchant": string, "category": string, "notes": string, '
+    '"from_wallet": "conta" | "dinheiro" | "investimento" | "", '
+    '"to_wallet": "conta" | "dinheiro" | "investimento" | "", '
+    '"target_kind": "income" | "expense" | "investment" | "investment_out" | ""}. '
+    "Regras de action: "
+    "create = registrar um lançamento novo (gasto, entrada ou aporte); "
+    "delete = quando o usuário pede para apagar, remover, excluir, desfazer ou "
+    "cancelar um lançamento (preencha target_kind e merchant se citados; amount=0 "
+    "se não citar valor); "
+    "transfer = quando o usuário pede para mover, transferir, passar, tirar, retirar "
+    "ou resgatar dinheiro entre conta, dinheiro e investimentos (preencha from_wallet "
+    "e to_wallet; amount é obrigatório). "
+    "Em transfer, from_wallet é a origem e to_wallet o destino; "
+    "resgatar/retirar dos investimentos = from_wallet investimento para conta/dinheiro. "
+    "Regras de kind (para create): income para entradas (recebi, salário, freelance, "
+    "rendimento, dividendo); investment somente para aportes/investimentos novos "
+    "(investi, aporte, tesouro, ações, CDB); senão expense. "
     "Escolha `category` dentre: Alimentação, Transporte, Moradia, Saúde, Lazer, "
     "Educação, Compras, Contas, Salário, Freelance, Investimento, Outros. "
     "Se não houver valor claro, use amount 0. "
     'Exemplo: "gastei 45 no ifood" → '
-    '{"merchant": "iFood", "amount": 45, "category": "Alimentação", "notes": "", "kind": "expense"}.'
+    '{"action": "create", "merchant": "iFood", "amount": 45, "category": "Alimentação", '
+    '"notes": "", "kind": "expense", "from_wallet": "", "to_wallet": "", "target_kind": ""}. '
+    'Exemplo: "resgata 300 do tesouro pra conta" → '
+    '{"action": "transfer", "merchant": "Tesouro", "amount": 300, '
+    '"category": "Transferência", "notes": "", "kind": "expense", '
+    '"from_wallet": "investimento", "to_wallet": "conta", "target_kind": ""}. '
+    'Exemplo: "apaga o gasto de 45 no ifood" → '
+    '{"action": "delete", "merchant": "iFood", "amount": 45, '
+    '"category": "Alimentação", "notes": "", "kind": "expense", '
+    '"from_wallet": "", "to_wallet": "", "target_kind": "expense"}.'
 )
 
 
@@ -52,6 +79,10 @@ class AIParseResult:
     category: str
     notes: str
     kind: str = "expense"
+    action: str = "create"
+    from_wallet: str = ""
+    to_wallet: str = ""
+    target_kind: str = ""
 
 
 class AIError(RuntimeError):
@@ -86,7 +117,7 @@ async def _call_groq(api_key: str, message: str, *, timeout: float) -> AIParseRe
             {"role": "user", "content": message},
         ],
         "temperature": 0,
-        "max_tokens": 300,
+        "max_tokens": 400,
     }
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -136,6 +167,21 @@ async def _call_openrouter(api_key: str, message: str, *, timeout: float) -> AIP
     return None
 
 
+def _coerce_wallet(value: object) -> str:
+    """Normaliza apelidos de carteira para conta/dinheiro/investimento."""
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return ""
+    if any(token in raw for token in ("invest", "corretora", "tesouro", "cdb", "ação", "acao",
+                                       "ações", "acoes", "cripto", "fii", "bolsa", "poupan")):
+        return "investimento"
+    if any(token in raw for token in ("dinheiro", "cash", "espécie", "especie", "carteira")):
+        return "dinheiro"
+    if any(token in raw for token in ("conta", "banco", "account", "bank", "corrente")):
+        return "conta"
+    return ""
+
+
 def _coerce(content: str) -> AIParseResult | None:
     import re as _re
 
@@ -169,10 +215,27 @@ def _coerce(content: str) -> AIParseResult | None:
     kind = str(obj.get("kind", "expense")).strip().lower()
     if kind not in ("income", "expense", "investment"):
         kind = "expense"
+
+    action = str(obj.get("action", "create")).strip().lower()
+    if action in ("remove", "remover", "delete", "apagar", "excluir", "undo"):
+        action = "delete"
+    elif action in ("move", "mover", "transfer", "transferir", "resgatar", "redeem"):
+        action = "transfer"
+    elif action != "create":
+        action = "create"
+
+    target_kind = str(obj.get("target_kind", "") or "").strip().lower()
+    if target_kind not in ("income", "expense", "investment", "investment_out"):
+        target_kind = ""
+
     return AIParseResult(
         merchant=str(obj.get("merchant", "")).strip()[:255],
         amount=amount,
         category=str(obj.get("category", "Outros")).strip()[:64] or "Outros",
         notes=str(obj.get("notes", "")).strip()[:500],
         kind=kind,
+        action=action,
+        from_wallet=_coerce_wallet(obj.get("from_wallet", obj.get("from", ""))),
+        to_wallet=_coerce_wallet(obj.get("to_wallet", obj.get("to", ""))),
+        target_kind=target_kind,
     )

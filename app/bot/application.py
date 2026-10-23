@@ -27,6 +27,8 @@ def build_application(*, polling: bool = False) -> Application:
     app.add_handler(CommandHandler("export", handlers.cmd_export))
     app.add_handler(CommandHandler("dashboard", handlers.cmd_dashboard))
     app.add_handler(CommandHandler("saldo", handlers.cmd_saldo))
+    app.add_handler(CommandHandler("desfazer", handlers.cmd_undo))
+    app.add_handler(CommandHandler(["remover", "apagar"], handlers.cmd_remove))
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.on_message)
     )
