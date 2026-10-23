@@ -24,7 +24,7 @@ from app.utils.money import format_brl
 
 logger = get_logger(__name__)
 
-SessionCookie = Annotated[str | None, Cookie(name=auth_service.SESSION_COOKIE_NAME)]
+SessionCookie = Annotated[str | None, Cookie(alias=auth_service.SESSION_COOKIE_NAME)]
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
